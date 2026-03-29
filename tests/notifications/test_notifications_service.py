@@ -1,4 +1,6 @@
-# TODO: test_get_user_notifications_empty, test_get_user_notifications_paginated, test_mark_notification_as_read
+# TODO:
+#  Базово: test_get_user_notifications_empty, test_mark_notification_as_read
+#  Продвинуто: test_get_user_notifications_paginated
 
 import uuid
 from datetime import datetime
@@ -75,3 +77,15 @@ async def test_send_notification_user_not_found(
             notification=NotificationCreate(**sample_notification_data)
         )
     assert exc_info.value.user_id == sample_notification_data["recipient_id"]
+
+
+@pytest.mark.asyncio
+async def test_get_user_notifications_empty(
+    sample_notification_data: dict, mock_repository: MagicMock
+):
+    """Тест на получение пустого списка, если у пользователя нет уведомлений"""
+    mock_repository.get_user_notifications.return_value = None
+
+    notification_service = NotificationService(mock_repository)
+
+    assert notification_service.get_user_notifications == []
