@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from typing import List
 
 from src.api.v1.notifications.exceptions import UserNotFoundError
 from src.api.v1.notifications.schemas import (
@@ -30,3 +31,8 @@ class NotificationService:
             is_read=False,
             created_at=datetime.now(timezone.utc),
         )
+
+    async def get_user_notifications(
+        self, user_id: uuid.UUID
+    ) -> List[NotificationResponse]:
+        return await self.repo.get_user_notifications(user_id) or []
