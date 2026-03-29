@@ -32,6 +32,7 @@ def mock_repository() -> MagicMock:
     """Мокированный репозиторий."""
     repo = MagicMock()
     repo.get_user_by_id = AsyncMock()
+    repo.get_user_notifications = AsyncMock()
     return repo
 
 
@@ -82,10 +83,18 @@ async def test_send_notification_user_not_found(
 @pytest.mark.asyncio
 async def test_get_user_notifications_empty(
     sample_notification_data: dict, mock_repository: MagicMock
-):
+) -> None:
     """Тест на получение пустого списка, если у пользователя нет уведомлений"""
-    mock_repository.get_user_notifications.return_value = None
+    mock_repository.get_user_notifications.return_value = []
 
     notification_service = NotificationService(mock_repository)
 
-    assert notification_service.get_user_notifications == []
+    user_notifications = await notification_service.get_user_notifications(
+        sample_notification_data["recipient_id"]
+    )
+
+    assert user_notifications == []
+
+    mock_repository.get_user_notifications.assert_called_once_with(
+        sample_notification_data["recipient_id"]
+    )
