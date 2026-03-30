@@ -19,6 +19,12 @@ class NotificationCreate(BaseModel):
     body: str = Field(..., min_length=1)
 
 
+class NotificationMarkAsRead(BaseModel):
+    """Схема для отметки уведомления как прочитанного."""
+
+    notification_id: uuid.UUID
+
+
 class NotificationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
