@@ -25,6 +25,17 @@ async def test_mark_notification_is_read(
     notification_repo: NotificationRepository,
     sample_notification: Notification,
 ) -> None:
+    """
+    Тест: отметка уведомления как прочитанного.
+
+    Проверяет, что:
+    1. Уведомление создаётся в БД
+    2. Метод mark_notification_as_read обновляет is_read
+    3. Изменения сохраняются и читаются из БД
+
+    После теста транзакция откатывается (данные не остаются)
+    """
+
     db_session.add(sample_notification)
     await db_session.commit()
     await db_session.refresh(sample_notification)  # Для auto полей (created_at)
