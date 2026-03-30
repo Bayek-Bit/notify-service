@@ -22,17 +22,12 @@ class NotificationRepository:
 
         return result.scalar_one_or_none()
 
-    async def mark_notification_as_read(self, notification_id: uuid.UUID) -> bool:
+    async def mark_notification_as_read(self, notification: Notification) -> None:
         """Отмечает уведомление как прочитанное"""
-        notification = await self.get_notification_by_id(notifcation_id)
-        if notification is None:
-            return False
-
         notification.is_read = True
         # notification.read_at = datetime.now(timezone.utc)  # Можно добавить позже
-
         await self.session.commit()
-        return True
+        await self.session.refresh(notification)
 
     async def get_user_notifications(self, user_id: uuid.UUID) -> Sequence[str]:
         """Получает только заголовки всех уведомления пользователя."""
