@@ -1,18 +1,18 @@
-# TODO:
-#  Базово: test_get_user_notifications_empty, test_mark_notification_as_read
-#  Продвинуто: test_get_user_notifications_paginated
-
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 
-from src.api.v1.notifications.exceptions import UserNotFoundError
+from src.api.v1.notifications.exceptions import (
+    UserNotFoundError,
+    NotificationNotFoundError,
+)
 from src.api.v1.notifications.schemas import (
     NotificationCreate,
     NotificationResponse,
     NotificationStatus,
+    NotificationMarkAsRead,
 )
 from src.api.v1.notifications.service import NotificationService
 
@@ -28,11 +28,31 @@ def sample_notification_data() -> dict:
 
 
 @pytest.fixture
+def notification_sample() -> dict:
+    notification_id = uuid.uuid4()
+    recipient_id = uuid.uuid4()
+
+    return {
+        "id": notification_id,
+        "recipient_id": recipient_id,
+        "title": "Test",
+        "body": "Test body",
+        "status": NotificationStatus.DELIVERED,
+        "is_read": False,
+        "read_at": None,
+        "created_at": datetime.now(timezone.utc),
+        "deleted_at": None,
+    }
+
+
+@pytest.fixture
 def mock_repository() -> MagicMock:
     """Мокированный репозиторий."""
     repo = MagicMock()
     repo.get_user_by_id = AsyncMock()
     repo.get_user_notifications = AsyncMock()
+    repo.get_notification_by_id = AsyncMock()
+    repo.mark_notification_as_read = AsyncMock()
     return repo
 
 
@@ -98,3 +118,43 @@ async def test_get_user_notifications_empty(
     mock_repository.get_user_notifications.assert_called_once_with(
         sample_notification_data["recipient_id"]
     )
+
+
+@pytest.mark.asyncio
+async def test_mark_notification_as_read(
+    notification_sample: dict, mock_repository: MagicMock
+) -> None:
+    """Тест is_read флага при прочтении уведомления пользователем."""
+
+    mock_repository.get_notification_by_id.return_value = NotificationResponse(
+        **notification_sample
+    )
+
+    notification_service = NotificationService(mock_repository)
+
+    result = await notification_service.mark_notification_as_read(
+        NotificationMarkAsRead(notification_id=notification_sample["id"])
+    )
+
+    assert isinstance(result, NotificationResponse)
+    assert result.id == notification_sample["id"]
+    assert result.is_read is True
+
+    mock_repository.mark_notification_as_read.assert_called_once_with(
+        notification_sample["id"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_mark_as_read_notification_not_found(
+    notification_sample: dict, mock_repository: MagicMock
+) -> None:
+    """Тест ошибки в случае не найденного сообщения при попытке изменить статус is_read."""
+    mock_repository.get_notification_by_id.return_value = None
+
+    notification_service = NotificationService(mock_repository)
+
+    with pytest.raises(NotificationNotFoundError):
+        await notification_service.mark_notification_as_read(
+            NotificationMarkAsRead(notification_id=notification_sample["id"])
+        )
