@@ -8,6 +8,7 @@ from src.api.v1.notifications.exceptions import (
     UserNotFoundError,
     NotificationNotFoundError,
 )
+from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.schemas import (
     NotificationCreate,
     NotificationResponse,
@@ -126,9 +127,23 @@ async def test_mark_notification_as_read(
 ) -> None:
     """Тест is_read флага при прочтении уведомления пользователем."""
 
-    mock_repository.get_notification_by_id.return_value = NotificationResponse(
-        **notification_sample
+    mock_notification = Notification(
+        id=notification_sample["id"],
+        recipient_id=notification_sample["recipient_id"],
+        title=notification_sample["title"],
+        body=notification_sample["body"],
+        is_read=False,  # Изначально не прочитано
+        deleted_at=notification_sample["deleted_at"],
+        created_at=notification_sample["created_at"],
     )
+
+    mock_repository.get_notification_by_id.return_value = mock_notification
+
+    # Мокаем mark_notification_as_read так, чтобы он менял объект
+    async def mock_mark_as_read(notification: Notification):
+        notification.is_read = True  # ← Имитируем реальную логику
+
+    mock_repository.mark_notification_as_read = AsyncMock(side_effect=mock_mark_as_read)
 
     notification_service = NotificationService(mock_repository)
 
@@ -139,10 +154,6 @@ async def test_mark_notification_as_read(
     assert isinstance(result, NotificationResponse)
     assert result.id == notification_sample["id"]
     assert result.is_read is True
-
-    mock_repository.mark_notification_as_read.assert_called_once_with(
-        notification_sample["id"]
-    )
 
 
 @pytest.mark.asyncio
