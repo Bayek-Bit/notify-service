@@ -6,6 +6,7 @@ from src.api.v1.notifications.exceptions import (
     UserNotFoundError,
     NotificationNotFoundError,
 )
+from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.schemas import (
     NotificationCreate,
     NotificationResponse,
@@ -41,17 +42,23 @@ class NotificationService:
     ) -> List[NotificationResponse]:
         return await self.repo.get_user_notifications(user_id) or []
 
+    async def _get_notification_or_raise(
+        self, notification_id: uuid.UUID
+    ) -> Notification:
+        notification = await self.repo.get_notification_by_id(notification_id)
+        if notification is None:
+            raise NotificationNotFoundError(notification_id)
+        return notification
+
     async def mark_notification_as_read(
         self, notification_to_read: NotificationMarkAsRead
     ) -> NotificationResponse:
 
-        notification = await self.repo.get_notification_by_id(
+        notification = await self._get_notification_or_raise(
             notification_to_read.notification_id
         )
-        if notification is None:
-            raise NotificationNotFoundError(notification_to_read.notification_id)
 
-        await self.repo.mark_notification_as_read(notification.id)
+        await self.repo.mark_notification_as_read(notification)
 
-        notification.is_read = True
+        notification.status = NotificationStatus.SENT
         return NotificationResponse.model_validate(notification)
