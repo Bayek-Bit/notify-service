@@ -21,6 +21,7 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
 
+    status: Mapped[str] = mapped_column(String(50), default="pending")
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, index=True
