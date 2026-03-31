@@ -151,7 +151,7 @@ async def test_get_user_notifications_not_found(
 
 @pytest.mark.asyncio
 async def test_soft_delete_notification(
-    sample_notification,
+    sample_notification: Notification,
     notification_repo: NotificationRepository,
     db_session: AsyncSession,
 ) -> None:
