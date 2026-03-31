@@ -103,6 +103,23 @@ async def test_get_notification_by_id_not_found(
 
 
 @pytest.mark.asyncio
+async def test_get_notification_by_id_excludes_soft_deleted(
+    db_session: AsyncSession,
+    notification_repo: NotificationRepository,
+    sample_notification: Notification,
+) -> None:
+    """Тест: get_notification_by_id не возвращает soft-deleted уведомления."""
+    db_session.add(sample_notification)
+    await db_session.commit()
+
+    await notification_repo.delete_notification(sample_notification.id)
+
+    found = await notification_repo.get_notification_by_id(sample_notification.id)
+
+    assert found is None
+
+
+@pytest.mark.asyncio
 async def test_get_user_notifications(
     db_session: AsyncSession,
     notification_repo: NotificationRepository,
@@ -130,3 +147,32 @@ async def test_get_user_notifications_not_found(
     notifications = await notification_repo.get_user_notifications(user_id)
 
     assert notifications == []
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_notification(
+    sample_notification: Notification,
+    notification_repo: NotificationRepository,
+    db_session: AsyncSession,
+) -> None:
+
+    db_session.add(sample_notification)
+    await db_session.commit()
+    await db_session.refresh(sample_notification)
+
+    result = await notification_repo.delete_notification(sample_notification.id)
+
+    assert result is True
+
+    # Проверяем, что deleted_at установлен
+    await db_session.refresh(sample_notification)
+    assert sample_notification.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_notification_not_found(
+    notification_repo: NotificationRepository,
+) -> None:
+    """Тест: soft delete несуществующего уведомления"""
+    result = await notification_repo.delete_notification(notification_id=uuid.uuid4())
+    assert result is False
