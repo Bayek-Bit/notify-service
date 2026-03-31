@@ -1,7 +1,5 @@
-import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, List, Sequence
+from typing import Optional, Sequence
 
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +41,7 @@ class NotificationRepository:
         )
         return result.scalars().all()
 
-    async def delete_notification(self, notification_id: uuid.UUID):
+    async def delete_notification(self, notification_id: uuid.UUID) -> bool:
         """
         Soft delete уведомления.
 
