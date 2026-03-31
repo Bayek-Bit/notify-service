@@ -3,7 +3,6 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.v1.notifications.exceptions import NotificationNotFoundError
 from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.repository import NotificationRepository
 
