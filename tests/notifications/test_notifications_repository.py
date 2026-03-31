@@ -103,6 +103,23 @@ async def test_get_notification_by_id_not_found(
 
 
 @pytest.mark.asyncio
+async def test_get_notification_by_id_excludes_soft_deleted(
+    db_session: AsyncSession,
+    notification_repo: NotificationRepository,
+    sample_notification: Notification,
+) -> None:
+    """Тест: get_notification_by_id не возвращает soft-deleted уведомления."""
+    db_session.add(sample_notification)
+    await db_session.commit()
+
+    await notification_repo.delete_notification(sample_notification.id)
+
+    found = await notification_repo.get_notification_by_id(sample_notification.id)
+
+    assert found is None
+
+
+@pytest.mark.asyncio
 async def test_get_user_notifications(
     db_session: AsyncSession,
     notification_repo: NotificationRepository,
@@ -150,10 +167,6 @@ async def test_soft_delete_notification(
     # Проверяем, что deleted_at установлен
     await db_session.refresh(sample_notification)
     assert sample_notification.deleted_at is not None
-
-    # Проверяем, что get_notification_by_id не возвращает удалённое
-    found = await notification_repo.get_notification_by_id(sample_notification.id)
-    assert found is None
 
 
 @pytest.mark.asyncio
