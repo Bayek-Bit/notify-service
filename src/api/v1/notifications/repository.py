@@ -16,7 +16,8 @@ class NotificationRepository:
     ) -> Optional[Notification]:
         """Получает уведомление по ID."""
         stmt = select(Notification).where(
-            Notification.id == notification_id, Notification.deleted_at.is_(None)
+            Notification.id == notification_id,
+            Notification.deleted_at.is_(None),
         )
 
         result = await self.session.execute(stmt)
@@ -35,7 +36,8 @@ class NotificationRepository:
         result = await self.session.execute(
             select(Notification.title)
             .where(
-                Notification.recipient_id == user_id, Notification.deleted_at.is_(None)
+                Notification.recipient_id == user_id,
+                Notification.deleted_at.is_(None),
             )
             .order_by(Notification.created_at.desc())
         )
