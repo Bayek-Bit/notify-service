@@ -3,7 +3,6 @@
 import asyncio
 import uuid
 from typing import AsyncGenerator
-
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import (
@@ -14,9 +13,11 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from src.database import Base
-from src.config import settings
+from src.api.v1.auth.dependencies import verify_service_token
 from src.api.v1.notifications.repository import NotificationRepository
+from src.config import settings
+from src.database import Base
+from src.main import app
 
 # ─────────────────────────────────────────────────────────────
 # Конфигурация: тестовая БД
@@ -24,6 +25,18 @@ from src.api.v1.notifications.repository import NotificationRepository
 TEST_DATABASE_URL = settings.db.DATABASE_URL.replace(
     "notifications", "notifications_test"
 )
+
+
+@pytest.fixture(autouse=True)
+def mock_auth_for_tests():
+    """Отключает проверку JWT в API-тестах через dependency_overrides (как в FastAPI)."""
+
+    async def override_verify_service_token() -> bool:
+        return True
+
+    app.dependency_overrides[verify_service_token] = override_verify_service_token
+    yield
+    app.dependency_overrides.pop(verify_service_token, None)
 
 
 @pytest.fixture(scope="session")
