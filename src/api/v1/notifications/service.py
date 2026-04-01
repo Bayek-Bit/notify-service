@@ -50,6 +50,13 @@ class NotificationService:
             raise NotificationNotFoundError(notification_id)
         return notification
 
+    async def get_notification_by_id(
+        self, notification_id: uuid.UUID
+    ) -> NotificationResponse:
+        """Получает уведомление по ID."""
+        notification = await self._get_notification_or_raise(notification_id)
+        return NotificationResponse.model_validate(notification)
+
     async def mark_notification_as_read(
         self, notification_to_read: NotificationMarkAsRead
     ) -> NotificationResponse:
