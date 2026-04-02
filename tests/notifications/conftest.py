@@ -2,8 +2,8 @@
 
 import asyncio
 import uuid
+from datetime import datetime, timezone
 from typing import AsyncGenerator
-
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import (
@@ -14,9 +14,13 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from src.database import Base
-from src.config import settings
+from src.api.v1.auth.dependencies import verify_service_token
+from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.repository import NotificationRepository
+from src.api.v1.notifications.schemas import NotificationStatus
+from src.config import settings
+from src.database import Base
+from src.main import app
 
 # ─────────────────────────────────────────────────────────────
 # Конфигурация: тестовая БД
@@ -24,6 +28,18 @@ from src.api.v1.notifications.repository import NotificationRepository
 TEST_DATABASE_URL = settings.db.DATABASE_URL.replace(
     "notifications", "notifications_test"
 )
+
+
+@pytest.fixture(autouse=True)
+def mock_auth_for_tests():
+    """Отключает проверку JWT в API-тестах через dependency_overrides (как в FastAPI)."""
+
+    async def override_verify_service_token() -> bool:
+        return True
+
+    app.dependency_overrides[verify_service_token] = override_verify_service_token
+    yield
+    app.dependency_overrides.pop(verify_service_token, None)
 
 
 @pytest.fixture(scope="session")
@@ -91,3 +107,19 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 async def notification_repo(db_session: AsyncSession) -> NotificationRepository:
     """Репозиторий с тестовой асинхронной сессией."""
     return NotificationRepository(session=db_session)
+
+
+@pytest.fixture
+def notification_full(notification_sample: dict) -> Notification:
+    """Полноценный объект Notification для тестов."""
+    return Notification(
+        id=uuid.uuid4(),
+        recipient_id=notification_sample["recipient_id"],
+        title=notification_sample["title"],
+        body=notification_sample["body"],
+        status=NotificationStatus.PENDING,
+        is_read=False,
+        created_at=datetime.now(timezone.utc),
+        # read_at=None,
+        deleted_at=None,
+    )

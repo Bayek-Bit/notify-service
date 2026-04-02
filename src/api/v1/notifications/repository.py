@@ -5,11 +5,24 @@ from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.v1.notifications.models import Notification
+from src.api.v1.notifications.schemas import NotificationCreate
 
 
 class NotificationRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def create_notification(
+        self, notification_data: NotificationCreate
+    ) -> Notification:
+        """Создает уведомление в БД."""
+        notification = Notification(**notification_data.model_dump())
+
+        self.session.add(notification)
+        await self.session.commit()
+        await self.session.refresh(notification)
+
+        return notification
 
     async def get_notification_by_id(
         self, notification_id: uuid.UUID

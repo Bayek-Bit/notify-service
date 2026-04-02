@@ -20,6 +20,14 @@ class NotificationService:
     def __init__(self, repo: NotificationRepository):
         self.repo = repo
 
+    async def create_notification(
+        self, notification_data: NotificationCreate
+    ) -> NotificationResponse:
+        """Создает уведомление."""
+        notification = await self.repo.create_notification(notification_data)
+
+        return NotificationResponse.model_validate(notification)
+
     async def send_notification(
         self, notification: NotificationCreate
     ) -> NotificationResponse:
@@ -37,9 +45,7 @@ class NotificationService:
             created_at=datetime.now(timezone.utc),
         )
 
-    async def get_user_notifications(
-        self, user_id: uuid.UUID
-    ) -> List[NotificationResponse]:
+    async def get_user_notifications(self, user_id: uuid.UUID) -> List[str]:
         return await self.repo.get_user_notifications(user_id) or []
 
     async def _get_notification_or_raise(
@@ -49,6 +55,13 @@ class NotificationService:
         if notification is None:
             raise NotificationNotFoundError(notification_id)
         return notification
+
+    async def get_notification_by_id(
+        self, notification_id: uuid.UUID
+    ) -> NotificationResponse:
+        """Получает уведомление по ID."""
+        notification = await self._get_notification_or_raise(notification_id)
+        return NotificationResponse.model_validate(notification)
 
     async def mark_notification_as_read(
         self, notification_to_read: NotificationMarkAsRead
@@ -62,3 +75,9 @@ class NotificationService:
 
         notification.status = NotificationStatus.SENT
         return NotificationResponse.model_validate(notification)
+
+    async def delete_notification(self, notification_id: uuid.UUID):
+
+        notification = await self._get_notification_or_raise(notification_id)
+
+        await self.repo.delete_notification(notification.id)
