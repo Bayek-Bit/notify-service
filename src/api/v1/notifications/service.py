@@ -45,9 +45,7 @@ class NotificationService:
             created_at=datetime.now(timezone.utc),
         )
 
-    async def get_user_notifications(
-        self, user_id: uuid.UUID
-    ) -> List[NotificationResponse]:
+    async def get_user_notifications(self, user_id: uuid.UUID) -> List[str]:
         return await self.repo.get_user_notifications(user_id) or []
 
     async def _get_notification_or_raise(

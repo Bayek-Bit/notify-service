@@ -41,7 +41,7 @@ async def get_notification_by_id(
 async def get_user_notifications(
     user_id: uuid.UUID,
     service: NotificationService = Depends(get_notification_service),
-) -> List[NotificationResponse]:
+) -> List[str | None]:
     return await service.get_user_notifications(user_id)
 
 
