@@ -55,8 +55,8 @@ def test_create_notification(notification_sample: dict):
 
     response = client.post(
         f"{settings.api_v1_prefix}/notifications/create_notification",
-        data={
-            "recipient_id": notification_sample["recipient_id"],
+        json={
+            "recipient_id": str(notification_sample["recipient_id"]),
             "title": notification_sample["title"],
             "body": notification_sample["body"],
         },
