@@ -34,6 +34,10 @@ def notification_sample() -> dict:
 
 
 def create_mock_repo(notification: Notification) -> AsyncMock:
+    """
+    Создает мок репозитория
+    Мокает логику успешного получения уведомления по id и прочтения уведомления
+    """
     mock_repo = AsyncMock()
 
     mock_repo.get_notification_by_id.return_value = notification
