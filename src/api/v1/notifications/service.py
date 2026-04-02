@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from src.api.v1.notifications.exceptions import (
     UserNotFoundError,
