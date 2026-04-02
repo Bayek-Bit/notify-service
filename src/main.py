@@ -8,13 +8,11 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from src.api.v1.notifications.exceptions import (
-    NotificationNotFoundError,
-    UserNotFoundError,
+    NotificationError,
 )
 from src.api.v1.notifications.router import router as api_v1_router
 from src.config import settings
 
-import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -26,24 +24,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
-@app.exception_handler(NotificationNotFoundError)
-async def notification_not_found_handler(
-    _request: Request, exc: NotificationNotFoundError
+@app.exception_handler(NotificationError)
+async def notification_error_handler(
+    _request: Request, exc: NotificationError
 ) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content={"detail": exc.message},
-    )
-
-
-@app.exception_handler(UserNotFoundError)
-async def user_not_found_handler(
-    _request: Request, exc: UserNotFoundError
-) -> JSONResponse:
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content={"detail": exc.message},
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
     )
 
 
