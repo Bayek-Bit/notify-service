@@ -40,7 +40,7 @@ def notification_sample() -> dict:
         "body": "Test body",
         "status": NotificationStatus.DELIVERED,
         "is_read": False,
-        "read_at": None,
+        # "read_at": None,
         "created_at": datetime.now(timezone.utc),
         "deleted_at": None,
     }
@@ -50,11 +50,29 @@ def notification_sample() -> dict:
 def mock_repository() -> MagicMock:
     """Мокированный репозиторий."""
     repo = MagicMock()
+    repo.create_notification = AsyncMock()
     repo.get_user_by_id = AsyncMock()
     repo.get_user_notifications = AsyncMock()
     repo.get_notification_by_id = AsyncMock()
     repo.mark_notification_as_read = AsyncMock()
     return repo
+
+
+@pytest.mark.asyncio
+async def test_create_notification(
+    sample_notification_data: dict,
+    mock_repository: MagicMock,
+    notification_full: Notification,
+):
+    mock_repository.create_notification.return_value = notification_full
+
+    notification_service = NotificationService(mock_repository)
+    result = await notification_service.create_notification(
+        NotificationCreate(**sample_notification_data)
+    )
+
+    assert isinstance(result, NotificationResponse)
+    assert result.id == notification_full.id
 
 
 @pytest.mark.asyncio
