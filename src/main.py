@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from time import perf_counter
 
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 import uvicorn
