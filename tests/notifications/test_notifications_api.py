@@ -52,18 +52,31 @@ def create_mock_repo(notification: Notification) -> AsyncMock:
 
 # POST notifications/create_notification
 def test_create_notification(notification_sample: dict):
+    """Тест создания уведомления с изолированными зависимостями."""
+    mock_repo = AsyncMock()
 
-    response = client.post(
-        f"{settings.api_v1_prefix}/notifications/create_notification",
-        json={
-            "recipient_id": str(notification_sample["recipient_id"]),
-            "title": notification_sample["title"],
-            "body": notification_sample["body"],
-        },
+    created_notification = Notification(**notification_sample)
+    mock_repo.create_notification.return_value = created_notification
+
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        mock_repo
     )
+    try:
+        response = client.post(
+            f"{settings.api_v1_prefix}/notifications/create_notification",
+            json={
+                "recipient_id": str(notification_sample["recipient_id"]),
+                "title": notification_sample["title"],
+                "body": notification_sample["body"],
+            },
+        )
 
-    assert response.status_code == 201
-    assert NotificationResponse.model_validate(response.json())
+        assert response.status_code == 201
+        assert NotificationResponse.model_validate(response.json())
+
+        mock_repo.create_notification.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_notification_service, None)
 
 
 # GET notifications/get_notification_by_id
@@ -149,15 +162,59 @@ def test_mark_notification_as_read(
     app.dependency_overrides[get_notification_service] = lambda: NotificationService(
         mock_repo
     )
+    try:
+        response = client.patch(
+            f"{settings.api_v1_prefix}/notifications/mark_notification_as_read/{notification_sample['id']}",
+        )
 
-    response = client.patch(
-        f"{settings.api_v1_prefix}/notifications/mark_notification_as_read/{notification_sample['id']}",
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["is_read"] is True
+        assert data["status"] == NotificationStatus.SENT
+
+        mock_repo.mark_notification_as_read.assert_awaited_once()
+    finally:
+        # Важно: иначе override зависимостей "протечет" в соседние тесты
+        app.dependency_overrides.pop(get_notification_service, None)
+
+
+# DELETE notifications/delete_notification
+def test_delete_notification_success(notification_sample: dict):
+    """Тест ручки для удаления сообщений (случай: уведомление найдено)."""
+    mock_repo = AsyncMock()
+    mock_repo.get_notification_by_id.return_value = Notification(**notification_sample)
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        mock_repo
+    )
+    try:
+        response = client.delete(
+            f"{settings.api_v1_prefix}/notifications/delete_notification/{notification_sample['id']}",
+        )
+
+        assert response.status_code == 204
+        mock_repo.get_notification_by_id.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_notification_service, None)
+
+
+# DELETE notifications/delete_notification
+def test_delete_notification_not_found(notification_sample: dict):
+    """Тест ручки для удаления сообщений (случай: уведомление не найдено)."""
+    mock_repo = AsyncMock()
+    mock_repo.get_notification_by_id.side_effect = NotificationNotFoundError(
+        notification_sample["id"]
     )
 
-    assert response.status_code == 200
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        mock_repo
+    )
+    try:
+        response = client.delete(
+            f"{settings.api_v1_prefix}/notifications/delete_notification/{notification_sample['id']}",
+        )
 
-    data = response.json()
-    assert data["is_read"] is True
-    assert data["status"] == NotificationStatus.SENT
-
-    mock_repo.mark_notification_as_read.assert_awaited_once()
+        assert response.status_code == 404
+        mock_repo.get_notification_by_id.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_notification_service, None)
