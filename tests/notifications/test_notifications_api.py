@@ -5,9 +5,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from src.api.v1.notifications.dependencies import get_notification_service
 from src.api.v1.notifications.exceptions import NotificationNotFoundError
 from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.schemas import NotificationStatus
+from src.api.v1.notifications.service import NotificationService
 from src.config import settings
 from src.main import app
 
@@ -31,6 +33,20 @@ def notification_sample() -> dict:
     }
 
 
+def create_mock_repo(notification: Notification) -> AsyncMock:
+    mock_repo = AsyncMock()
+
+    mock_repo.get_notification_by_id.return_value = notification
+
+    async def mark_as_read(notification):
+        notification.is_read = True
+
+    mock_repo.mark_notification_as_read.side_effect = mark_as_read
+
+    return mock_repo
+
+
+# GET notifications/get_notification_by_id
 @patch("src.api.v1.notifications.service.NotificationRepository.get_notification_by_id")
 def test_get_notification_success(
     mock_get_notification: AsyncMock,
@@ -63,6 +79,7 @@ def test_get_notification_not_found(
     mock_get_notification.assert_called_once()
 
 
+# GET notifications/get_user_notifications
 @patch("src.api.v1.notifications.service.NotificationRepository.get_user_notifications")
 def test_user_notifications(
     mock_get_user_notifications: AsyncMock,
@@ -82,3 +99,45 @@ def test_user_notifications(
 
     assert response.status_code == 200
     mock_get_user_notifications.assert_called_once()
+
+
+@patch("src.api.v1.notifications.service.NotificationRepository.get_user_notifications")
+def test_user_notifications_no_notifications(
+    mock_get_user_notifications: AsyncMock,
+    notification_sample: dict,
+) -> None:
+    """Тест: получение пустого списка всех уведомлений пользователя"""
+    mock_get_user_notifications.return_value = []
+
+    response = client.get(
+        f"{settings.api_v1_prefix}/notifications/get_user_notifications/{notification_sample['id']}",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+    mock_get_user_notifications.assert_called_once()
+
+
+# PATCH notifications/mark_notification_as_read
+def test_mark_notification_as_read(
+    notification_sample: dict,
+):
+    """Тест: обновление уведомления при прочтении"""
+    notification = Notification(**notification_sample)
+    mock_repo = create_mock_repo(notification)
+
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        mock_repo
+    )
+
+    response = client.patch(
+        f"{settings.api_v1_prefix}/notifications/mark_notification_as_read/{notification_sample['id']}",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["is_read"] is True
+    assert data["status"] == NotificationStatus.SENT
+
+    mock_repo.mark_notification_as_read.assert_awaited_once()
