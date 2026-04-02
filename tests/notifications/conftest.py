@@ -2,6 +2,7 @@
 
 import asyncio
 import uuid
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
@@ -14,7 +15,9 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 
 from src.api.v1.auth.dependencies import verify_service_token
+from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.repository import NotificationRepository
+from src.api.v1.notifications.schemas import NotificationStatus
 from src.config import settings
 from src.database import Base
 from src.main import app
@@ -104,3 +107,19 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 async def notification_repo(db_session: AsyncSession) -> NotificationRepository:
     """Репозиторий с тестовой асинхронной сессией."""
     return NotificationRepository(session=db_session)
+
+
+@pytest.fixture
+def notification_full(notification_sample: dict) -> Notification:
+    """Полноценный объект Notification для тестов."""
+    return Notification(
+        id=uuid.uuid4(),
+        recipient_id=notification_sample["recipient_id"],
+        title=notification_sample["title"],
+        body=notification_sample["body"],
+        status=NotificationStatus.PENDING,
+        is_read=False,
+        created_at=datetime.now(timezone.utc),
+        # read_at=None,
+        deleted_at=None,
+    )
