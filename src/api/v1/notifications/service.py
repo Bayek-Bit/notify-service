@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from src.api.v1.notifications.exceptions import (
     UserNotFoundError,
@@ -19,6 +19,14 @@ from src.api.v1.notifications.repository import NotificationRepository
 class NotificationService:
     def __init__(self, repo: NotificationRepository):
         self.repo = repo
+
+    async def create_notification(
+        self, notification_data: NotificationCreate
+    ) -> NotificationResponse:
+        """Создает уведомление."""
+        notification = await self.repo.create_notification(notification_data)
+
+        return NotificationResponse.model_validate(notification)
 
     async def send_notification(
         self, notification: NotificationCreate
