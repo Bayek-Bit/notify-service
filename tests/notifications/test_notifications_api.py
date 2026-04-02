@@ -198,7 +198,6 @@ def test_delete_notification_success(notification_sample: dict):
         app.dependency_overrides.pop(get_notification_service, None)
 
 
-# DELETE notifications/delete_notification
 def test_delete_notification_not_found(notification_sample: dict):
     """Тест ручки для удаления сообщений (случай: уведомление не найдено)."""
     mock_repo = AsyncMock()
