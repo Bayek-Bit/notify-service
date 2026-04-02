@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from src.api.v1.notifications.dependencies import get_notification_service
 from src.api.v1.notifications.exceptions import NotificationNotFoundError
 from src.api.v1.notifications.models import Notification
-from src.api.v1.notifications.schemas import NotificationStatus
+from src.api.v1.notifications.schemas import NotificationStatus, NotificationResponse
 from src.api.v1.notifications.service import NotificationService
 from src.config import settings
 from src.main import app
@@ -48,6 +48,22 @@ def create_mock_repo(notification: Notification) -> AsyncMock:
     mock_repo.mark_notification_as_read.side_effect = mark_as_read
 
     return mock_repo
+
+
+# POST notifications/create_notification
+def test_create_notification(notification_sample: dict):
+
+    response = client.post(
+        f"{settings.api_v1_prefix}/notifications/create_notification",
+        data={
+            "recipient_id": notification_sample["recipient_id"],
+            "title": notification_sample["title"],
+            "body": notification_sample["body"],
+        },
+    )
+
+    assert response.status_code == 201
+    assert NotificationResponse.model_validate(response.json())
 
 
 # GET notifications/get_notification_by_id
