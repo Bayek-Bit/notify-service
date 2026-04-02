@@ -13,7 +13,6 @@ from src.api.v1.notifications.exceptions import (
 from src.api.v1.notifications.router import router as api_v1_router
 from src.config import settings
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +22,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
 
 @app.exception_handler(NotificationError)
 async def notification_error_handler(
