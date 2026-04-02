@@ -179,6 +179,24 @@ def test_mark_notification_as_read(
         app.dependency_overrides.pop(get_notification_service, None)
 
 
+def test_mark_notification_as_read_not_found(notification_sample: dict) -> None:
+    """Тест: ручка mark_notification_as_read возвращает 404, если уведомление не найдено."""
+    mock_repo = AsyncMock()
+    mock_repo.get_notification_by_id.return_value = None
+
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        mock_repo
+    )
+    try:
+        response = client.patch(
+            f"{settings.api_v1_prefix}/notifications/mark_notification_as_read/{notification_sample['id']}",
+        )
+        assert response.status_code == 404
+        mock_repo.get_notification_by_id.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_notification_service, None)
+
+
 # DELETE notifications/delete_notification
 def test_delete_notification_success(notification_sample: dict):
     """Тест ручки для удаления сообщений (случай: уведомление найдено)."""
@@ -194,6 +212,7 @@ def test_delete_notification_success(notification_sample: dict):
 
         assert response.status_code == 204
         mock_repo.get_notification_by_id.assert_awaited_once()
+        mock_repo.delete_notification.assert_awaited_once()
     finally:
         app.dependency_overrides.pop(get_notification_service, None)
 
