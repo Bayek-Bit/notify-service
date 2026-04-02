@@ -77,3 +77,9 @@ class NotificationService:
 
         notification.status = NotificationStatus.SENT
         return NotificationResponse.model_validate(notification)
+
+    async def delete_notification(self, notification_id: uuid.UUID):
+
+        notification = await self._get_notification_or_raise(notification_id)
+
+        await self.repo.delete_notification(notification.id)

@@ -48,3 +48,13 @@ async def mark_notification_as_read(
     # Оставляю схему для будущего расширения - добавления тела запроса с доп. полями (read_at, ...)
     mark_as_read_data = NotificationMarkAsRead(notification_id=notification_id)
     return await service.mark_notification_as_read(mark_as_read_data)
+
+
+@router.delete(
+    "/delete_notification/{notification_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_notification(
+    notification_id: uuid.UUID,
+    service: NotificationService = Depends(get_notification_service),
+):
+    await service.delete_notification(notification_id)
