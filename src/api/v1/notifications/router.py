@@ -6,6 +6,7 @@ from fastapi.params import Depends
 
 from src.api.v1.auth.dependencies import verify_service_token
 from src.api.v1.notifications.dependencies import get_notification_service
+from src.api.v1.notifications.logging_service import logger
 from src.api.v1.notifications.schemas import (
     NotificationMarkAsRead,
     NotificationCreate,
@@ -23,6 +24,9 @@ async def create_notification(
     notification: NotificationCreate,
     service: NotificationService = Depends(get_notification_service),
 ) -> NotificationResponse:
+    logger.info(
+        "Создание уведомления для пользователя", recipient_id=notification.recipient_id
+    )
     return await service.create_notification(notification)
 
 
@@ -31,6 +35,7 @@ async def get_notification_by_id(
     notification_id: uuid.UUID,
     service: NotificationService = Depends(get_notification_service),
 ) -> NotificationResponse:
+    logger.info("Запрос уведомления по ID", notification_id=notification_id)
     return await service.get_notification_by_id(notification_id)
 
 
@@ -39,6 +44,7 @@ async def get_user_notifications(
     user_id: uuid.UUID,
     service: NotificationService = Depends(get_notification_service),
 ) -> List[str | None]:
+    logger.info("Запрос уведомлений пользователя", user_id=user_id)
     return await service.get_user_notifications(user_id)
 
 
@@ -48,6 +54,9 @@ async def mark_notification_as_read(
     service: NotificationService = Depends(get_notification_service),
 ) -> NotificationResponse:
     # Оставляю схему для будущего расширения - добавления тела запроса с доп. полями (read_at, ...)
+    logger.info(
+        "Изменение статуса сообщения на 'прочитано'", notification_id=notification_id
+    )
     mark_as_read_data = NotificationMarkAsRead(notification_id=notification_id)
     return await service.mark_notification_as_read(mark_as_read_data)
 
@@ -59,4 +68,5 @@ async def delete_notification(
     notification_id: uuid.UUID,
     service: NotificationService = Depends(get_notification_service),
 ) -> None:
+    logger.info("Удаление сообщения", notification_id=notification_id)
     await service.delete_notification(notification_id)
