@@ -1,14 +1,13 @@
-# Нужно ли на реализовывать queue_consumer как repo. Подключение к RabbitMQ происходит единожды? Стоит просто один раз создать экземпляр?
-
 import uuid
 from typing import List
 
 from src.api.v1.notifications.exceptions import (
-    UserNotFoundError,
     NotificationNotFoundError,
 )
 from src.api.v1.notifications.models import Notification
-from src.api.v1.notifications.queue_producer import queue_producer
+from src.api.v1.notifications.queue_producer import (
+    QueueProducerProtocol,
+)
 from src.api.v1.notifications.schemas import (
     NotificationCreate,
     NotificationResponse,
@@ -19,8 +18,11 @@ from src.api.v1.notifications.repository import NotificationRepository
 
 
 class NotificationService:
-    def __init__(self, repo: NotificationRepository):
+    def __init__(
+        self, repo: NotificationRepository, queue_producer: QueueProducerProtocol
+    ):
         self.repo = repo
+        self.queue_producer = queue_producer
 
     async def create_notification(
         self, notification_data: NotificationCreate
@@ -37,7 +39,7 @@ class NotificationService:
         # if user is None:
         #     raise UserNotFoundError(user_id=notification.recipient_id)
 
-        result = await queue_producer.send_notification_task(
+        result = await self.queue_producer.send_notification_task(
             notification=notification,
             task_type="message",
         )
