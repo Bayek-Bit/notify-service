@@ -1,12 +1,13 @@
 import uuid
-from datetime import datetime, timezone
 from typing import List
 
 from src.api.v1.notifications.exceptions import (
-    UserNotFoundError,
     NotificationNotFoundError,
 )
 from src.api.v1.notifications.models import Notification
+from src.api.v1.notifications.queue_producer import (
+    QueueProducerProtocol,
+)
 from src.api.v1.notifications.schemas import (
     NotificationCreate,
     NotificationResponse,
@@ -17,8 +18,11 @@ from src.api.v1.notifications.repository import NotificationRepository
 
 
 class NotificationService:
-    def __init__(self, repo: NotificationRepository):
+    def __init__(
+        self, repo: NotificationRepository, queue_producer: QueueProducerProtocol
+    ):
         self.repo = repo
+        self.queue_producer = queue_producer
 
     async def create_notification(
         self, notification_data: NotificationCreate
@@ -28,22 +32,18 @@ class NotificationService:
 
         return NotificationResponse.model_validate(notification)
 
-    async def send_notification(
-        self, notification: NotificationCreate
-    ) -> NotificationResponse:
-        user = await self.repo.get_user_by_id(notification.recipient_id)
-        if user is None:
-            raise UserNotFoundError(user_id=notification.recipient_id)
+    async def send_notification(self, notification: NotificationCreate) -> bool:
+        # На этом этапе мы доверяем отправителю, допуская, что notification.recipient_id относится к существующему пользоввтклю.
+        # Либо обращаться к UserService, который можно будет реализовать потом
+        # user = await self.repo.get_user_by_id(notification.recipient_id)
+        # if user is None:
+        #     raise UserNotFoundError(user_id=notification.recipient_id)
 
-        return NotificationResponse(
-            id=uuid.uuid4(),
-            recipient_id=notification.recipient_id,
-            title=notification.title,
-            body=notification.body,
-            status=NotificationStatus.PENDING,
-            is_read=False,
-            created_at=datetime.now(timezone.utc),
+        result = await self.queue_producer.send_notification_task(
+            notification=notification,
+            task_type="message",
         )
+        return result
 
     async def get_user_notifications(self, user_id: uuid.UUID) -> List[str]:
         return await self.repo.get_user_notifications(user_id) or []
