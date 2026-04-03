@@ -1,5 +1,6 @@
+# Нужно ли на реализовывать queue_consumer как repo. Подключение к RabbitMQ происходит единожды? Стоит просто один раз создать экземпляр?
+
 import uuid
-from datetime import datetime, timezone
 from typing import List
 
 from src.api.v1.notifications.exceptions import (
@@ -7,6 +8,7 @@ from src.api.v1.notifications.exceptions import (
     NotificationNotFoundError,
 )
 from src.api.v1.notifications.models import Notification
+from src.api.v1.notifications.queue_producer import queue_producer
 from src.api.v1.notifications.schemas import (
     NotificationCreate,
     NotificationResponse,
@@ -28,22 +30,18 @@ class NotificationService:
 
         return NotificationResponse.model_validate(notification)
 
-    async def send_notification(
-        self, notification: NotificationCreate
-    ) -> NotificationResponse:
-        user = await self.repo.get_user_by_id(notification.recipient_id)
-        if user is None:
-            raise UserNotFoundError(user_id=notification.recipient_id)
+    async def send_notification(self, notification: NotificationCreate) -> bool:
+        # На этом этапе мы доверяем отправителю, допуская, что notification.recipient_id относится к существующему пользоввтклю.
+        # Либо обращаться к UserService, который можно будет реализовать потом
+        # user = await self.repo.get_user_by_id(notification.recipient_id)
+        # if user is None:
+        #     raise UserNotFoundError(user_id=notification.recipient_id)
 
-        return NotificationResponse(
-            id=uuid.uuid4(),
-            recipient_id=notification.recipient_id,
-            title=notification.title,
-            body=notification.body,
-            status=NotificationStatus.PENDING,
-            is_read=False,
-            created_at=datetime.now(timezone.utc),
+        result = await queue_producer.send_notification_task(
+            notification=notification,
+            task_type="message",
         )
+        return result
 
     async def get_user_notifications(self, user_id: uuid.UUID) -> List[str]:
         return await self.repo.get_user_notifications(user_id) or []
