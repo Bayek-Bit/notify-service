@@ -1,3 +1,5 @@
+from typing import Protocol
+
 import aio_pika
 import json
 
@@ -5,7 +7,13 @@ from src.api.v1.notifications.logging_service import logger
 from src.api.v1.notifications.schemas import NotificationCreate
 
 
-class QueueProducer:
+class QueueProducerProtocol(Protocol):
+    async def send_notification_task(
+        self, notification: NotificationCreate, task_type: str
+    ) -> bool: ...
+
+
+class QueueProducer(QueueProducerProtocol):
     def __init__(self, host: str = "localhost"):
         self.host = host
         self.connection = None
