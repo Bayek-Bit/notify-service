@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: notify-service-deployment
+spec:
+    replicas: 3
+    selector:
+        matchLabels:
+            app: notify-service
+    template:
+        metadata:
+            labels:
+                app: notify-service
+        spec:
+            containers:
+                - name: app
+                  image: notify-service-app:latest
+                  imagePullPolicy: IfNotPresent
+                  ports:
+                    - containerPort: 8000
+                  env:
+                    - name: DATABASE_URL
+                      value: postgresql://vaceslavivanov:228335@db:5432/notifications
