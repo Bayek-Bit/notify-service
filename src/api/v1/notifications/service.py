@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from typing import List
 
@@ -30,10 +31,12 @@ class NotificationService:
         """Создает уведомление."""
         notification = await self.repo.create_notification(notification_data)
 
+        asyncio.create_task(self._send_notification(notification_data))
+
         return NotificationResponse.model_validate(notification)
 
-    async def send_notification(self, notification: NotificationCreate) -> bool:
-        # На этом этапе мы доверяем отправителю, допуская, что notification.recipient_id относится к существующему пользоввтклю.
+    async def _send_notification(self, notification: NotificationCreate) -> bool:
+        # На этом этапе мы доверяем отправителю, допуская, что notification.recipient_id относится к существующему пользователю.
         # Либо обращаться к UserService, который можно будет реализовать потом
         # user = await self.repo.get_user_by_id(notification.recipient_id)
         # if user is None:
