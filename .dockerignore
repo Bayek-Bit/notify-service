@@ -1,0 +1,30 @@
+# Виртуальные окружения
+.venv
+venv
+env
+
+# Кэш и артефакты
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.log
+
+# Git и инструменты
+.git
+.gitignore
+.vscode
+.idea
+
+# Тесты и документация (опционально)
+tests/
+*.md
+docs/
+
+# Docker-файлы (не нужны внутри образа)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
