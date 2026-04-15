@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import Sequence
 
 from fastapi import APIRouter, status
 from fastapi.params import Depends
@@ -43,7 +43,7 @@ async def get_notification_by_id(
 async def get_user_notifications(
     user_id: uuid.UUID,
     service: NotificationService = Depends(get_notification_service),
-) -> List[str | None]:
+) -> Sequence[str]:
     logger.info("Запрос уведомлений пользователя", user_id=user_id)
     return await service.get_user_notifications(user_id)
 

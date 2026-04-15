@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import List
+from typing import Sequence
 
 from src.api.v1.notifications.exceptions import (
     NotificationNotFoundError,
@@ -48,7 +48,7 @@ class NotificationService:
         )
         return result
 
-    async def get_user_notifications(self, user_id: uuid.UUID) -> List[str]:
+    async def get_user_notifications(self, user_id: uuid.UUID) -> Sequence[str]:
         return await self.repo.get_user_notifications(user_id) or []
 
     async def _get_notification_or_raise(

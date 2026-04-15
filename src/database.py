@@ -2,14 +2,14 @@
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
-from sqlalchemy import func
+from sqlalchemy.orm import DeclarativeBase, declared_attr
 
 from src.config import settings
 
 
 class Base(DeclarativeBase):
     """Базовый класс для моделей"""
+
     __abstract__ = True
 
     @declared_attr.directive
@@ -17,14 +17,10 @@ class Base(DeclarativeBase):
         return f"{cls.__name__.lower()}s"
 
 
-
 # Инициализация движка БД
 engine = create_async_engine(settings.db.DATABASE_URL, echo=settings.db.ECHO)
 session_factory = async_sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-    expire_on_commit=False
+    bind=engine, autoflush=False, autocommit=False, expire_on_commit=False
 )
 
 

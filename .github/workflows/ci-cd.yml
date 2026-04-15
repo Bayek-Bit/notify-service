@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 
 jobs:
@@ -32,6 +32,8 @@ jobs:
 
       - name: Type check with mypy
         run: |
+          python -m pip install --upgrade pip
+          pip install mypy
           mypy src/ --ignore-missing-imports
 
       - name: Run tests

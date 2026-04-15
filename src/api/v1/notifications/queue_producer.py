@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Optional
 
 import aio_pika
 import json
@@ -16,11 +16,11 @@ class QueueProducerProtocol(Protocol):
 class QueueProducer(QueueProducerProtocol):
     def __init__(self, host: str = "localhost"):
         self.host = host
-        self.connection = None
-        self.channel = None
+        self.connection: Optional[aio_pika.RobustConnection] = None
+        self.channel: Optional[aio_pika.Channel] = None
         self.queue_name = "notification_processing"
 
-    async def connect(self):
+    async def connect(self) -> bool:
         """Подключение к RabbitMQ"""
         try:
             self.connection = await aio_pika.connect_robust(
@@ -38,10 +38,14 @@ class QueueProducer(QueueProducerProtocol):
         self,
         notification: NotificationCreate,
         task_type: str,
-    ):
+    ) -> bool:
         if not self.channel or not self.connection:
             if not await self.connect():
                 return False
+
+        assert self.channel is not None, "Channel must be connected"
+        assert self.connection is not None, "Connection must be established"
+
         try:
             message = {"task_type": task_type, **notification}
 
@@ -59,7 +63,7 @@ class QueueProducer(QueueProducerProtocol):
             logger.warning("Ошибка при отправки уведомления в очередь: %s", ex)
             return False
 
-    async def close(self):
+    async def close(self) -> None:
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
 
