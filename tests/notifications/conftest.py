@@ -4,6 +4,8 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import (
@@ -15,9 +17,11 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 
 from src.api.v1.auth.dependencies import verify_service_token
+from src.api.v1.notifications.dependencies import get_notification_service
 from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.repository import NotificationRepository
 from src.api.v1.notifications.schemas import NotificationStatus
+from src.api.v1.notifications.service import NotificationService
 from src.config import settings
 from src.database import Base
 from src.main import app
@@ -28,6 +32,41 @@ from src.main import app
 TEST_DATABASE_URL = settings.db.DATABASE_URL.replace(
     "notifications", "notifications_test"
 )
+
+
+@pytest.fixture
+def mock_repository() -> AsyncMock:
+    """Базовый мок репозитория. Можно задавать return_value/side_effect внутри теста."""
+    mock_repo = AsyncMock()
+
+    return mock_repo
+
+
+@pytest.fixture
+def mock_queue_producer() -> AsyncMock:
+    return AsyncMock()
+
+
+@pytest.fixture
+def notification_service_override(mock_repository, mock_queue_producer):
+    """
+    Фикстура для подмены зависимости.
+    Не используйте autouse=True, если не хотите одинакового поведения во всех тестах.
+    """
+
+    def fake_get_service():
+        return NotificationService(
+            repo=mock_repository, queue_producer=mock_queue_producer
+        )
+
+    # Подменяем ДО выполнения теста
+    app.dependency_overrides[get_notification_service] = fake_get_service
+
+    # Возвращаем моки в тест, чтобы в нём настраивать поведение
+    yield mock_repository, mock_queue_producer
+
+    # Чистим ТОЛЬКО эту зависимость после теста
+    app.dependency_overrides.pop(get_notification_service, None)
 
 
 @pytest.fixture(autouse=True)
