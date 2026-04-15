@@ -9,6 +9,9 @@ class DBSettings(BaseModel):
     DATABASE_URL: str
     ECHO: bool = False
 
+    USER: str
+    PASSWORD: str
+
 
 class AuthJWT(BaseModel):
     private_key_path: Path = BASE_DIR / "src" / "certs" / "private.pem"
@@ -24,7 +27,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         env_nested_delimiter="__",
-        case_sensitive=False
+        case_sensitive=False,
     )
 
     api_v1_prefix: str = "/api/v1"
