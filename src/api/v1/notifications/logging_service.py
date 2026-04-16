@@ -1,9 +1,12 @@
 import logging
+import os
 from typing import Any
 
 
 class LoggingService:
     def __init__(self, log_file: str = "logs/app.log"):
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
