@@ -45,7 +45,7 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov=src --cov-report=xml
         env:
-          DB__DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          DB__DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
           DB__USER: test
           DB__PASSWORD: test
 
