@@ -1,6 +1,6 @@
-from sqlalchemy import String, Text, Boolean, DateTime, Index, func
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import String, Text, Boolean, DateTime, func
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
 

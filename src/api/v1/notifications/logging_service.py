@@ -1,10 +1,12 @@
 import logging
+import os
+from typing import Any
 
 
 class LoggingService:
-    def __init__(self, log_file: str = "app.log"):
-        """Инициализация сервиса логирования"""
-        # Настройка  логирования
+    def __init__(self, log_file: str = "logs/app.log"):
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -16,21 +18,37 @@ class LoggingService:
         )
         self.logger = logging.getLogger(__name__)
 
-    def info(self, message: str, **kwargs):
-        """Логирование"информационного сообщения"""
-        self.logger.info("%s | %s", message, kwargs)
+    def info(self, message: str, *args: Any, **kwargs: Any) -> None:
+        """Логирование информационного сообщения"""
+        if args:
+            message = message % args  # форматирование в стиле %
+        if kwargs:
+            message = f"{message} | {kwargs}"
+        self.logger.info(message)
 
-    def error(self, message: str, **kwargs):
+    def error(self, message: str, *args: Any, **kwargs: Any) -> None:
         """Логирование ошибки"""
-        self.logger.error("%s | %s", message, kwargs)
+        if args:
+            message = message % args
+        if kwargs:
+            message = f"{message} | {kwargs}"
+        self.logger.error(message)
 
-    def warning(self, message: str, **kwargs):
+    def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
         """Логирование предупреждения"""
-        self.logger.warning("%s | %s", message, kwargs)
+        if args:
+            message = message % args
+        if kwargs:
+            message = f"{message} | {kwargs}"
+        self.logger.warning(message)
 
-    def critical(self, message: str, **kwargs):
+    def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
         """Логирование критической ошибки"""
-        self.logger.critical("%s | %s", message, kwargs)
+        if args:
+            message = message % args
+        if kwargs:
+            message = f"{message} | {kwargs}"
+        self.logger.critical(message)
 
 
 logger = LoggingService()

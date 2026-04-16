@@ -61,12 +61,15 @@ def mock_repository() -> MagicMock:
 @pytest.mark.asyncio
 async def test_create_notification(
     sample_notification_data: dict,
-    mock_repository: MagicMock,
     notification_full: Notification,
+    notification_service_override,
 ):
-    mock_repository.create_notification.return_value = notification_full
+    """Тест: создание уведомления"""
+    mock_repo, mock_queue = notification_service_override
 
-    notification_service = NotificationService(mock_repository)
+    mock_repo.create_notification.return_value = notification_full
+
+    notification_service = NotificationService(mock_repo, mock_queue)
     result = await notification_service.create_notification(
         NotificationCreate(**sample_notification_data)
     )
@@ -77,56 +80,66 @@ async def test_create_notification(
 
 @pytest.mark.asyncio
 async def test_send_notification_success(
-    sample_notification_data: dict, mock_repository: MagicMock
+    sample_notification_data: dict,
+    notification_service_override,
 ) -> None:
     """Тест успешного отправления уведомления"""
+    mock_repo, mock_queue = notification_service_override
+
+    recipient_id = sample_notification_data["recipient_id"]
+
     # Нашли пользователя в БД
-    mock_repository.get_user_by_id.return_value = {"user_id": uuid.uuid4()}
+    mock_repo.get_user_by_id.return_value = {"user_id": recipient_id}
 
-    notification_service = NotificationService(mock_repository)
+    # Успешно отправили сообщение
+    mock_queue.send_notification_task.return_value = True
 
-    result = await notification_service.send_notification(
+    notification_service = NotificationService(mock_repo, mock_queue)
+
+    result = await notification_service._send_notification(
         notification=NotificationCreate(**sample_notification_data)
     )
 
-    assert isinstance(result, NotificationResponse)
-    assert result.status == NotificationStatus.PENDING
-    assert result.id is not None
-    assert result.recipient_id == sample_notification_data["recipient_id"]
-    assert result.title == sample_notification_data["title"]
-    assert result.body == sample_notification_data["body"]
-    assert result.is_read is False
-    assert isinstance(result.created_at, datetime)
-    assert result.created_at.tzinfo is not None
+    assert result is True
+
+    mock_queue.send_notification_task.assert_awaited_once()
+
+    # Требуется сервис пользователей.
+    # mock_repo.get_user_by_id.assert_awaited_once_with(user_id=recipient_id)
 
 
-@pytest.mark.asyncio
-async def test_send_notification_user_not_found(
-    sample_notification_data: dict, mock_repository: MagicMock
-) -> None:
-    """Тест ошибки при попытке отправить уведомление несуществующему пользователю"""
-
-    # Случай, когда пользователь не найден в БД
-    mock_repository.get_user_by_id.return_value = None
-
-    notification_service = NotificationService(mock_repository)
-
-    with pytest.raises(UserNotFoundError) as exc_info:
-        # Использует мок репозитория
-        await notification_service.send_notification(
-            notification=NotificationCreate(**sample_notification_data)
-        )
-    assert exc_info.value.user_id == sample_notification_data["recipient_id"]
+# Если добавлять интеграцию с сервисом пользователей - раскомментить тест.
+# @pytest.mark.asyncio
+# async def test_send_notification_user_not_found(
+#     sample_notification_data: dict, notification_service_override
+# ) -> None:
+#     """Тест ошибки при попытке отправить уведомление несуществующему пользователю"""
+#     mock_repo, mock_queue = notification_service_override
+#
+#     # Случай, когда пользователь не найден в БД
+#     mock_repo.get_user_by_id.return_value = None
+#
+#     notification_service = NotificationService(mock_repo, mock_queue)
+#
+#     with pytest.raises(UserNotFoundError) as exc_info:
+#         # Использует мок репозитория
+#         await notification_service._send_notification(
+#             notification=NotificationCreate(**sample_notification_data)
+#         )
+#     assert exc_info.value.user_id == sample_notification_data["recipient_id"]
 
 
 @pytest.mark.asyncio
 async def test_get_user_notifications_empty(
-    sample_notification_data: dict, mock_repository: MagicMock
+    sample_notification_data: dict,
+    notification_service_override,
 ) -> None:
     """Тест на получение пустого списка, если у пользователя нет уведомлений"""
-    mock_repository.get_user_notifications.return_value = []
+    mock_repo, mock_queue = notification_service_override
 
-    notification_service = NotificationService(mock_repository)
+    mock_repo.get_user_notifications.return_value = []
+
+    notification_service = NotificationService(mock_repo, mock_queue)
 
     user_notifications = await notification_service.get_user_notifications(
         sample_notification_data["recipient_id"]
@@ -134,16 +147,18 @@ async def test_get_user_notifications_empty(
 
     assert user_notifications == []
 
-    mock_repository.get_user_notifications.assert_called_once_with(
+    mock_repo.get_user_notifications.assert_called_once_with(
         sample_notification_data["recipient_id"]
     )
 
 
 @pytest.mark.asyncio
 async def test_mark_notification_as_read(
-    notification_sample: dict, mock_repository: MagicMock
+    notification_sample: dict,
+    notification_service_override,
 ) -> None:
     """Тест is_read флага при прочтении уведомления пользователем."""
+    mock_repo, mock_queue = notification_service_override
 
     mock_notification = Notification(
         id=notification_sample["id"],
@@ -155,15 +170,15 @@ async def test_mark_notification_as_read(
         created_at=notification_sample["created_at"],
     )
 
-    mock_repository.get_notification_by_id.return_value = mock_notification
+    mock_repo.get_notification_by_id.return_value = mock_notification
 
     # Мокаем mark_notification_as_read так, чтобы он менял объект
     async def mock_mark_as_read(notification: Notification):
-        notification.is_read = True  # ← Имитируем реальную логику
+        notification.is_read = True
 
-    mock_repository.mark_notification_as_read = AsyncMock(side_effect=mock_mark_as_read)
+    mock_repo.mark_notification_as_read = AsyncMock(side_effect=mock_mark_as_read)
 
-    notification_service = NotificationService(mock_repository)
+    notification_service = NotificationService(mock_repo, mock_queue)
 
     result = await notification_service.mark_notification_as_read(
         NotificationMarkAsRead(notification_id=notification_sample["id"])
@@ -176,12 +191,15 @@ async def test_mark_notification_as_read(
 
 @pytest.mark.asyncio
 async def test_mark_as_read_notification_not_found(
-    notification_sample: dict, mock_repository: MagicMock
+    notification_sample: dict,
+    notification_service_override,
 ) -> None:
     """Тест ошибки в случае не найденного сообщения при попытке изменить статус is_read."""
-    mock_repository.get_notification_by_id.return_value = None
+    mock_repo, mock_queue = notification_service_override
 
-    notification_service = NotificationService(mock_repository)
+    mock_repo.get_notification_by_id.return_value = None
+
+    notification_service = NotificationService(mock_repo, mock_queue)
 
     with pytest.raises(NotificationNotFoundError):
         await notification_service.mark_notification_as_read(

@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import Sequence, Annotated
 
 from fastapi import APIRouter, status
 from fastapi.params import Depends
@@ -18,11 +18,15 @@ router = APIRouter(
     prefix="/notifications", dependencies=[Depends(verify_service_token)]
 )
 
+NotificationServiceDep = Annotated[
+    NotificationService, Depends(get_notification_service)
+]
+
 
 @router.post("/create_notification", status_code=status.HTTP_201_CREATED)
 async def create_notification(
     notification: NotificationCreate,
-    service: NotificationService = Depends(get_notification_service),
+    service: NotificationServiceDep,
 ) -> NotificationResponse:
     logger.info(
         "Создание уведомления для пользователя", recipient_id=notification.recipient_id
@@ -33,7 +37,7 @@ async def create_notification(
 @router.get("/get_notification/{notification_id}")
 async def get_notification_by_id(
     notification_id: uuid.UUID,
-    service: NotificationService = Depends(get_notification_service),
+    service: NotificationServiceDep,
 ) -> NotificationResponse:
     logger.info("Запрос уведомления по ID", notification_id=notification_id)
     return await service.get_notification_by_id(notification_id)
@@ -42,8 +46,8 @@ async def get_notification_by_id(
 @router.get("/get_user_notifications/{user_id}")
 async def get_user_notifications(
     user_id: uuid.UUID,
-    service: NotificationService = Depends(get_notification_service),
-) -> List[str | None]:
+    service: NotificationServiceDep,
+) -> Sequence[str]:
     logger.info("Запрос уведомлений пользователя", user_id=user_id)
     return await service.get_user_notifications(user_id)
 
@@ -51,7 +55,7 @@ async def get_user_notifications(
 @router.patch("/mark_notification_as_read/{notification_id}")
 async def mark_notification_as_read(
     notification_id: uuid.UUID,
-    service: NotificationService = Depends(get_notification_service),
+    service: NotificationServiceDep,
 ) -> NotificationResponse:
     # Оставляю схему для будущего расширения - добавления тела запроса с доп. полями (read_at, ...)
     logger.info(
@@ -66,7 +70,7 @@ async def mark_notification_as_read(
 )
 async def delete_notification(
     notification_id: uuid.UUID,
-    service: NotificationService = Depends(get_notification_service),
+    service: NotificationServiceDep,
 ) -> None:
     logger.info("Удаление сообщения", notification_id=notification_id)
     await service.delete_notification(notification_id)

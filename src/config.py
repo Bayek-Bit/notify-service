@@ -1,5 +1,9 @@
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+    PydanticBaseSettingsSource,
+)
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
@@ -23,8 +27,8 @@ class AuthJWT(BaseModel):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env",
-        env_file_encoding="utf-8",
+        # env_file=BASE_DIR / ".env",
+        # env_file_encoding="utf-8",
         extra="ignore",
         env_nested_delimiter="__",
         case_sensitive=False,
@@ -34,6 +38,20 @@ class Settings(BaseSettings):
 
     db: DBSettings
     auth_jwt: AuthJWT = AuthJWT()
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            env_settings,
+            dotenv_settings,
+        )
 
 
 settings = Settings()
