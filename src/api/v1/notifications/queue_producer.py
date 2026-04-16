@@ -16,8 +16,8 @@ class QueueProducerProtocol(Protocol):
 class QueueProducer(QueueProducerProtocol):
     def __init__(self, host: str = "localhost"):
         self.host = host
-        self.connection: Optional[aio_pika.RobustConnection] = None
-        self.channel: Optional[aio_pika.Channel] = None
+        self.connection: Optional[aio_pika.abc.AbstractRobustConnection] = None
+        self.channel: Optional[aio_pika.abc.AbstractChannel] = None
         self.queue_name = "notification_processing"
 
     async def connect(self) -> bool:
@@ -47,7 +47,7 @@ class QueueProducer(QueueProducerProtocol):
         assert self.connection is not None, "Connection must be established"
 
         try:
-            message = {"task_type": task_type, **notification}
+            message = {"task_type": task_type, **notification.model_dump()}
 
             await self.channel.default_exchange.publish(
                 aio_pika.Message(
