@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class NotificationStatus(str, Enum):
     PENDING = "pending"
+    PROCESSING = "processing"
     SENT = "sent"
     DELIVERED = "delivered"
     FAILED = "failed"
