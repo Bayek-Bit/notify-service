@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.repository import NotificationRepository
+from src.api.v1.notifications.schemas import NotificationStatus
 
 
 @pytest.fixture
@@ -176,3 +177,30 @@ async def test_soft_delete_notification_not_found(
     """Тест: soft delete несуществующего уведомления"""
     result = await notification_repo.delete_notification(notification_id=uuid.uuid4())
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_notification_status_field_update(
+    notification_repo: NotificationRepository, db_session: AsyncSession
+) -> None:
+    """Тест: успешное обновление статуса уведомления при передаче в очередь."""
+    notification = Notification(
+        recipient_id=uuid.uuid4(),
+        title="Test",
+        body="Async flow check",
+        status=NotificationStatus.PROCESSING,
+    )
+
+    db_session.add(notification)
+    await db_session.commit()
+    await db_session.refresh(notification)
+
+    assert notification.status == NotificationStatus.PROCESSING
+    assert notification.updated_at is not None
+
+    # Симулируем переход в SENT
+    notification.status = NotificationStatus.SENT
+    await db_session.commit()
+    await db_session.refresh(notification)
+
+    assert notification.status == NotificationStatus.SENT
