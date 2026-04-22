@@ -10,6 +10,7 @@ class NotificationStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"
     SENT = "sent"
+    READ = "read"
     DELIVERED = "delivered"
     FAILED = "failed"
 
@@ -18,6 +19,13 @@ class NotificationCreate(BaseModel):
     recipient_id: uuid.UUID
     title: str = Field(..., max_length=255)
     body: str = Field(..., min_length=1)
+
+
+class NotificationTask(BaseModel):
+    id: uuid.UUID
+    recipient_id: uuid.UUID
+    title: str
+    body: str
 
 
 class NotificationMarkAsRead(BaseModel):

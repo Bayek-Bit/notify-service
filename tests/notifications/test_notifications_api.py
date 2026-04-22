@@ -151,7 +151,7 @@ def test_mark_notification_as_read(
 
     data = response.json()
     assert data["is_read"] is True
-    assert data["status"] == NotificationStatus.SENT
+    assert data["status"] == NotificationStatus.READ
 
     mock_repo.get_notification_by_id.assert_awaited_once_with(notification_sample["id"])
     mock_repo.mark_notification_as_read.assert_awaited_once_with(notification)
@@ -172,7 +172,9 @@ def test_mark_notification_as_read_not_found(
 
 
 # DELETE notifications/delete_notification
-def test_delete_notification_success(notification_sample: dict, notification_service_override):
+def test_delete_notification_success(
+    notification_sample: dict, notification_service_override
+):
     """Тест ручки для удаления сообщений (случай: уведомление найдено)."""
     mock_repo, _ = notification_service_override
     mock_repo.get_notification_by_id.return_value = Notification(**notification_sample)
