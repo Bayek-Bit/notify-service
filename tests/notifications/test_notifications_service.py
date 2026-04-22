@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock
@@ -5,7 +6,6 @@ from unittest.mock import MagicMock, AsyncMock
 import pytest
 
 from src.api.v1.notifications.exceptions import (
-    UserNotFoundError,
     NotificationNotFoundError,
 )
 from src.api.v1.notifications.models import Notification
@@ -14,6 +14,7 @@ from src.api.v1.notifications.schemas import (
     NotificationResponse,
     NotificationStatus,
     NotificationMarkAsRead,
+    NotificationTask,
 )
 from src.api.v1.notifications.service import NotificationService
 
@@ -83,50 +84,124 @@ async def test_send_notification_success(
     sample_notification_data: dict,
     notification_service_override,
 ) -> None:
-    """Тест успешного отправления уведомления"""
+    """Тест успешной отправки задачи уведомления в очередь через _safe_send_task"""
     mock_repo, mock_queue = notification_service_override
-
-    recipient_id = sample_notification_data["recipient_id"]
-
-    # Нашли пользователя в БД
-    mock_repo.get_user_by_id.return_value = {"user_id": recipient_id}
 
     # Успешно отправили сообщение
     mock_queue.send_notification_task.return_value = True
 
     notification_service = NotificationService(mock_repo, mock_queue)
 
-    result = await notification_service._send_notification(
-        notification=NotificationCreate(**sample_notification_data)
+    task = NotificationTask(
+        id=uuid.uuid4(),
+        recipient_id=sample_notification_data["recipient_id"],
+        title=sample_notification_data["title"],
+        body=sample_notification_data["body"],
     )
 
-    assert result is True
+    await notification_service._safe_send_task(task, "message")
+
+    mock_queue.send_notification_task.assert_awaited_once_with(task, "message")
+
+
+@pytest.mark.asyncio
+async def test_create_notification_sends_to_queue(
+    sample_notification_data,
+    notification_full,
+    notification_service_override,
+):
+    mock_repo, mock_queue = notification_service_override
+    mock_repo.create_notification.return_value = notification_full
+    mock_queue.send_notification_task.return_value = True
+
+    service = NotificationService(mock_repo, mock_queue)
+    await service.create_notification(NotificationCreate(**sample_notification_data))
+
+    # Даём event loop обработать фоновые задачи
+    await asyncio.sleep(0)
 
     mock_queue.send_notification_task.assert_awaited_once()
 
-    # Требуется сервис пользователей.
-    # mock_repo.get_user_by_id.assert_awaited_once_with(user_id=recipient_id)
+
+@pytest.mark.asyncio
+async def test_create_notification_sends_notification_with_id(
+    sample_notification_data,
+    notification_full,
+    notification_service_override,
+):
+    mock_repo, mock_queue = notification_service_override
+    mock_repo.create_notification.return_value = notification_full
+    mock_queue.send_notification_task.return_value = True
+
+    service = NotificationService(mock_repo, mock_queue)
+    await service.create_notification(NotificationCreate(**sample_notification_data))
+
+    await asyncio.sleep(0)
+
+    mock_queue.send_notification_task.assert_awaited_once()
+
+    call_args = mock_queue.send_notification_task.await_args
+    sent_task = call_args.args[0]
+    sent_task_type = call_args.args[1]
+
+    assert isinstance(sent_task, NotificationTask)
+    assert sent_task.id == notification_full.id
+    assert sent_task.recipient_id == notification_full.recipient_id
+    assert sent_task.title == notification_full.title
+    assert sent_task.body == notification_full.body
+    assert sent_task_type == "message"
 
 
-# Если добавлять интеграцию с сервисом пользователей - раскомментить тест.
-# @pytest.mark.asyncio
-# async def test_send_notification_user_not_found(
-#     sample_notification_data: dict, notification_service_override
-# ) -> None:
-#     """Тест ошибки при попытке отправить уведомление несуществующему пользователю"""
-#     mock_repo, mock_queue = notification_service_override
-#
-#     # Случай, когда пользователь не найден в БД
-#     mock_repo.get_user_by_id.return_value = None
-#
-#     notification_service = NotificationService(mock_repo, mock_queue)
-#
-#     with pytest.raises(UserNotFoundError) as exc_info:
-#         # Использует мок репозитория
-#         await notification_service._send_notification(
-#             notification=NotificationCreate(**sample_notification_data)
-#         )
-#     assert exc_info.value.user_id == sample_notification_data["recipient_id"]
+@pytest.mark.asyncio
+async def test_create_notification_sets_pending_status(
+    sample_notification_data,
+    notification_full,
+    notification_service_override,
+):
+    mock_repo, mock_queue = notification_service_override
+
+    notification_full.status = NotificationStatus.PENDING
+    mock_repo.create_notification.return_value = notification_full
+
+    service = NotificationService(mock_repo, mock_queue)
+
+    result = await service.create_notification(
+        NotificationCreate(**sample_notification_data)
+    )
+
+    assert result.status == NotificationStatus.PENDING
+
+
+@pytest.mark.asyncio
+async def test_create_notification_does_not_wait_for_queue(
+    sample_notification_data,
+    notification_full,
+    notification_service_override,
+):
+    mock_repo, mock_queue = notification_service_override
+
+    mock_repo.create_notification.return_value = notification_full
+
+    async def slow_send(*args, **kwargs):
+        import asyncio
+
+        await asyncio.sleep(1)
+        return True
+
+    mock_queue.send_notification_task.side_effect = slow_send
+
+    service = NotificationService(mock_repo, mock_queue)
+
+    import time
+
+    start = time.perf_counter()
+
+    await service.create_notification(NotificationCreate(**sample_notification_data))
+
+    duration = time.perf_counter() - start
+
+    # Метод должен отработать быстро (<1 сек)
+    assert duration < 0.1
 
 
 @pytest.mark.asyncio
