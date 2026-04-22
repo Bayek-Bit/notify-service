@@ -5,6 +5,7 @@ from typing import Sequence
 from src.api.v1.notifications.exceptions import (
     NotificationNotFoundError,
 )
+from src.api.v1.notifications.logging_service import logger
 from src.api.v1.notifications.models import Notification
 from src.api.v1.notifications.queue_producer import (
     QueueProducerProtocol,
@@ -14,6 +15,7 @@ from src.api.v1.notifications.schemas import (
     NotificationResponse,
     NotificationStatus,
     NotificationMarkAsRead,
+    NotificationTask,
 )
 from src.api.v1.notifications.repository import NotificationRepository
 
@@ -28,25 +30,36 @@ class NotificationService:
     async def create_notification(
         self, notification_data: NotificationCreate
     ) -> NotificationResponse:
-        """Создает уведомление."""
+        """Создает уведомление и ставит задачу в очередь (Fire & Forget)."""
         notification = await self.repo.create_notification(notification_data)
 
-        asyncio.create_task(self._send_notification(notification_data))
+        task = NotificationTask(
+            id=notification.id,
+            recipient_id=notification.recipient_id,
+            title=notification.title,
+            body=notification.body,
+        )
+
+        # Запускаем в фоне с обёрткой для логирования ошибок
+        asyncio.create_task(
+            self._safe_send_task(task, "message"),
+            name=f"notification-{notification.id}",  # Имя для отладки
+        )
 
         return NotificationResponse.model_validate(notification)
 
-    async def _send_notification(self, notification: NotificationCreate) -> bool:
-        # На этом этапе мы доверяем отправителю, допуская, что notification.recipient_id относится к существующему пользователю.
-        # Либо обращаться к UserService, который можно будет реализовать потом
-        # user = await self.repo.get_user_by_id(notification.recipient_id)
-        # if user is None:
-        #     raise UserNotFoundError(user_id=notification.recipient_id)
-
-        result = await self.queue_producer.send_notification_task(
-            notification=notification,
-            task_type="message",
-        )
-        return result
+    async def _safe_send_task(self, task: NotificationTask, task_type: str) -> None:
+        """Обёртка для безопасного выполнения фоновой задачи."""
+        try:
+            success = await self.queue_producer.send_notification_task(task, task_type)
+            if not success:
+                logger.warning("Failed to queue notification task: %s", task.id)
+        except asyncio.CancelledError:
+            # Задача отменена при завершении приложения - это нормально
+            logger.info("Task cancelled during shutdown: %s", task.id)
+        except Exception as e:
+            # Ловим всё, что не поймал producer
+            logger.critical("Critical error in background task %s: %s", task.id, e)
 
     async def get_user_notifications(self, user_id: uuid.UUID) -> Sequence[str]:
         return await self.repo.get_user_notifications(user_id) or []
@@ -76,7 +89,7 @@ class NotificationService:
 
         await self.repo.mark_notification_as_read(notification)
 
-        notification.status = NotificationStatus.SENT
+        notification.status = NotificationStatus.READ
         return NotificationResponse.model_validate(notification)
 
     async def delete_notification(self, notification_id: uuid.UUID):

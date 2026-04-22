@@ -4,12 +4,12 @@ import aio_pika
 import json
 
 from src.api.v1.notifications.logging_service import logger
-from src.api.v1.notifications.schemas import NotificationCreate
+from src.api.v1.notifications.schemas import NotificationTask
 
 
 class QueueProducerProtocol(Protocol):
     async def send_notification_task(
-        self, notification: NotificationCreate, task_type: str
+        self, notification: NotificationTask, task_type: str
     ) -> bool: ...
 
 
@@ -36,7 +36,7 @@ class QueueProducer(QueueProducerProtocol):
 
     async def send_notification_task(
         self,
-        notification: NotificationCreate,
+        notification: NotificationTask,
         task_type: str,
     ) -> bool:
         if not self.channel or not self.connection:
