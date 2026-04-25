@@ -3,10 +3,9 @@ from typing import Callable, Awaitable, Dict
 import asyncio
 import json
 import aio_pika
-from aio_pika.abc import AbstractMessage, AbstractQueue
+from aio_pika.abc import AbstractIncomingMessage, AbstractQueue
 
 from src.api.v1.notifications.logging_service import logger
-from src.api.v1.notifications.push_service import send_push_notification
 from src.api.v1.notifications.redis_pubsub import redis_manager
 from src.api.v1.notifications.schemas import NotificationTask
 
@@ -78,7 +77,7 @@ class NotificationConsumer:
         self._handlers[task_type] = handler
         logger.info("Зарегистрирован обработчик для task_type: %s", task_type)
 
-    async def _process_message(self, message: AbstractMessage):
+    async def _process_message(self, message: AbstractIncomingMessage):
         async with message.process(requeue=False):
             try:
                 body = json.loads(message.body.decode())
@@ -111,7 +110,7 @@ class NotificationConsumer:
                     await message.nack(requeue=True)  # Повтор при временной ошибке
 
             except Exception as e:
-                logger.exception(f"Critical error in consumer: {e}")
+                logger.critical(f"Critical error in consumer: {e}")
                 await message.nack(requeue=False)  # В DLQ при критической ошибке
 
     async def start(self):

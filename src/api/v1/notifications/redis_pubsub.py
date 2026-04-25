@@ -20,6 +20,7 @@ class RedisPubSubManager:
 
         # default=str нужен для корректной сериализации UUID
         payload = json.dumps(message, default=str)
+        assert self._redis is not None, "Redis not connected"
         await self._redis.publish(channel, payload)
         logger.info(f" [REDIS] Сообщение опубликовано в канал {channel}")
 
