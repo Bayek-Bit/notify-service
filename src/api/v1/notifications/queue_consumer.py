@@ -85,24 +85,34 @@ class NotificationConsumer:
                 task_type = body.pop("task_type", None)
                 notification = NotificationTask(**body)
 
-                # 1. Отправляем Push (заглушка)
-                push_success = await send_push_notification(notification)
+                handler = self._handlers.get(task_type)
+                if not handler:
+                    logger.warning(
+                        f"Нет обработчика для task_type='{task_type}', сообщение отклонено"
+                    )
+                    await message.nack(
+                        requeue=False
+                    )  # В DLQ, т.к. неизвестный тип задачи
+                    return
 
-                if push_success:
-                    # 2. Публикуем в Redis для real-time бэкенд-бэкенд связки
+                success = await handler(notification)
+
+                if success:
+                    # Публикация в Redis для real-time связки бэкенд-бэкенд
                     channel = f"notifications:{notification.recipient_id}"
                     await redis_manager.publish(channel, notification.model_dump())
-
-                    logger.info(f"Сообщение {notification.id} успешно обработано")
+                    logger.info(
+                        f"Задача {notification.id} (type={task_type}) успешно обработана"
+                    )
                 else:
-                    logger.error(f"Failed to send push for {notification.id}")
-                    await message.nack(
-                        requeue=True
-                    )  # Можно вернуть в очередь, если это временный сбой
+                    logger.error(
+                        f"Обработчик вернул failure для задачи {notification.id}"
+                    )
+                    await message.nack(requeue=True)  # Повтор при временной ошибке
 
             except Exception as e:
                 logger.exception(f"Critical error in consumer: {e}")
-                await message.nack(requeue=False)  # В DLQ
+                await message.nack(requeue=False)  # В DLQ при критической ошибке
 
     async def start(self):
         """Запуск потребления сообщений"""
