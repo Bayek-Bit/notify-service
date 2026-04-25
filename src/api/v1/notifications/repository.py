@@ -5,7 +5,7 @@ from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.v1.notifications.models import Notification
-from src.api.v1.notifications.schemas import NotificationCreate
+from src.api.v1.notifications.schemas import NotificationCreate, NotificationStatus
 
 
 class NotificationRepository:
@@ -55,6 +55,18 @@ class NotificationRepository:
             .order_by(Notification.created_at.desc())
         )
         return result.scalars().all()
+
+    async def update_status(
+        self, notification_id: uuid.UUID, status: NotificationStatus
+    ) -> None:
+        """Обновляет статус уведомления в базе данных."""
+        stmt = (
+            update(Notification)
+            .where(Notification.id == notification_id)
+            .values(status=status, updated_at=func.now())
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def delete_notification(self, notification_id: uuid.UUID) -> bool:
         """
