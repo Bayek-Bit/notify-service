@@ -20,4 +20,7 @@ spec:
                     - containerPort: 8000
                   env:
                     - name: DATABASE_URL
-                      value: postgresql://vaceslavivanov:228335@db:5432/notifications
+                      valueFrom:
+                        secretKeyRef:
+                          name: notify-db-secret
+                          key: DB__DATABASE_URL
