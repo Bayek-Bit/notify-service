@@ -1,7 +1,15 @@
+from functools import lru_cache
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from src.config import settings
+
+
+@lru_cache()
+def get_public_key() -> str:
+    return settings.auth_jwt.public_key_path.read_text()
+
 
 security = HTTPBearer()
 
@@ -12,7 +20,7 @@ async def verify_service_token(
     try:
         jwt.decode(
             credentials.credentials,
-            settings.auth_jwt.public_key_path.read_text(),
+            get_public_key(),
             algorithms=[settings.auth_jwt.algorithm],
         )
     except jwt.InvalidTokenError:
